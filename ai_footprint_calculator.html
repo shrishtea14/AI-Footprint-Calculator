@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Footprint Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Eco-Neutral -->
+    <!-- Application Structure Plan: The application is designed as a single-view, interactive dashboard centered on a calculator. The structure includes: a header for identity, a main interactive section where users input a query and see real-time stats, a results section that provides contextual comparisons through a dynamic bar chart and relatable text snippets, and an expandable 'About' section for methodology transparency. This task-oriented design was chosen to immediately engage the user in the core activity (calculating a footprint), provide instant feedback to reinforce learning, and then offer deeper context, creating a clear and intuitive user flow that directly serves the educational goal of the source presentation. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: AI query energy, cost, and carbon footprint. -> Goal: Inform, Compare, Engage. -> Viz/Presentation: 1) Dynamic Stat Cards for live feedback. 2) A Chart.js Bar Chart to compare the query's impact against common digital activities. 3) Dynamic text blocks for relatable, real-world analogies. -> Interaction: The stat cards update live as the user types. The bar chart and text blocks update upon clicking the 'Calculate' button, providing a clear "result" event. -> Justification: This multi-faceted approach makes abstract data tangible. Live stats create engagement, the chart provides crucial context, and relatable text enhances understanding and retention, fulfilling the presentation's goal of raising awareness. -> Library/Method: Chart.js for visualizations, Vanilla JS for all logic, Tailwind CSS for styling.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .stat-card {
+            transition: all 0.3s ease-in-out;
+            transform-style: preserve-3d;
+        }
+        .stat-card-inner {
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+        }
+        .stat-card .front, .stat-card .back {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        .stat-card .back {
+            transform: rotateY(180deg);
+        }
+        .stat-card:hover .stat-card-inner {
+            transform: rotateY(180deg);
+        }
+        .smooth-transition {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-[#F8F6F2] text-[#333]">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-[#2C5F2D]">AI Footprint</h1>
+            <p class="text-lg text-gray-600 mt-2">A Transparent Look at AI's Environmental Cost</p>
+        </header>
+
+        <main class="bg-white rounded-2xl shadow-lg p-6 md:p-10 max-w-4xl mx-auto">
+            
+            <section id="calculator">
+                <h2 class="text-2xl font-semibold text-center mb-2">How much does your question cost?</h2>
+                <p class="text-center text-gray-500 mb-6">Enter a prompt for an AI model to get an estimate of its energy, financial, and carbon footprint.</p>
+                
+                <div class="mb-6">
+                    <textarea id="aiQueryInput" class="w-full h-32 p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#97BC62] focus:border-[#97BC62] transition duration-200" placeholder="e.g., Explain the theory of relativity in simple terms..."></textarea>
+                </div>
+                
+                <div class="flex justify-center mb-8">
+                    <button id="calculateBtn" class="bg-[#2C5F2D] text-white font-bold py-3 px-8 rounded-lg hover:bg-[#4a8a4b] smooth-transition shadow-md">Calculate Footprint</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 text-center">
+                    <div class="stat-card">
+                        <div class="stat-card-inner">
+                            <div class="front bg-gray-50 p-6 rounded-lg border">
+                                <p class="text-sm text-gray-500 mb-1">⚡️ Energy Use</p>
+                                <p id="energyOutput" class="text-3xl font-bold text-[#2C5F2D]">0.00 Wh</p>
+                            </div>
+                            <div class="back bg-[#2C5F2D] text-white p-6 rounded-lg border">
+                                <p class="text-sm font-semibold">Energy</p>
+                                <p class="text-xs mt-2">Represents the electricity consumed by servers and cooling systems to process your query.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-inner">
+                            <div class="front bg-gray-50 p-6 rounded-lg border">
+                                <p class="text-sm text-gray-500 mb-1">💰 Financial Cost</p>
+                                <p id="costOutput" class="text-3xl font-bold text-[#2C5F2D]">$0.0000</p>
+                            </div>
+                             <div class="back bg-[#2C5F2D] text-white p-6 rounded-lg border">
+                                <p class="text-sm font-semibold">Cost</p>
+                                <p class="text-xs mt-2">The estimated cost of the electricity used, based on average commercial energy prices.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-inner">
+                            <div class="front bg-gray-50 p-6 rounded-lg border">
+                                <p class="text-sm text-gray-500 mb-1">💨 Carbon Footprint</p>
+                                <p id="carbonOutput" class="text-3xl font-bold text-[#2C5F2D]">0.00 g CO₂</p>
+                            </div>
+                            <div class="back bg-[#2C5F2D] text-white p-6 rounded-lg border">
+                                <p class="text-sm font-semibold">CO₂ Footprint</p>
+                                <p class="text-xs mt-2">The estimated carbon dioxide equivalent emissions from generating the required electricity.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="results" class="mt-12 pt-8 border-t border-gray-200 hidden">
+                <h2 class="text-2xl font-semibold text-center mb-6">Putting It In Perspective</h2>
+                
+                <div id="relatableComparisons" class="text-center text-gray-700 mb-8 space-y-2">
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+                <p class="text-xs text-center text-gray-400 mt-2">Comparison of energy (Wh) for your query versus other common digital activities.</p>
+            </section>
+        </main>
+
+        <section id="about" class="max-w-4xl mx-auto mt-8">
+            <details class="bg-white rounded-lg shadow-sm p-4 cursor-pointer">
+                <summary class="font-semibold text-lg text-gray-700">About This Calculator & Methodology</summary>
+                <div class="mt-4 text-gray-600 space-y-3 text-sm">
+                    <p>This tool provides an <strong class="font-semibold">estimation</strong> of the environmental and financial cost of a single AI query to raise awareness about the hidden resource consumption of modern AI models.</p>
+                    <p>The calculation is a simulation based on publicly available research and industry averages. It is not a measurement from a live data center. The formula considers:</p>
+                    <ul class="list-disc list-inside space-y-1 pl-4">
+                        <li><strong>Baseline Consumption:</strong> A base energy cost for activating the AI model.</li>
+                        <li><strong>Query Complexity:</strong> A multiplier based on the length of your text input, as longer prompts require more processing.</li>
+                        <li><strong>Power Usage Effectiveness (PUE):</strong> A factor (we use an industry average of 1.5) to account for the energy used by supporting infrastructure, like cooling systems, which often consumes a significant amount of power in data centers.</li>
+                    </ul>
+                    <p>The goal is to provide a directional understanding of AI's footprint and encourage more mindful and sustainable usage. The actual energy cost can vary dramatically based on the specific AI model, the hardware it runs on, and the efficiency of the data center.</p>
+                </div>
+            </details>
+        </section>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>Inspired by the need for a more sustainable digital future.</p>
+            <p>&copy; 2025 AI Footprint Initiative</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const queryInput = document.getElementById('aiQueryInput');
+            const calculateBtn = document.getElementById('calculateBtn');
+            const energyOutput = document.getElementById('energyOutput');
+            const costOutput = document.getElementById('costOutput');
+            const carbonOutput = document.getElementById('carbonOutput');
+            const resultsSection = document.getElementById('results');
+            const relatableContainer = document.getElementById('relatableComparisons');
+            const chartCanvas = document.getElementById('comparisonChart');
+
+            const config = {
+                baselineEnergyWh: 0.3, 
+                charEnergyWh: 0.0005,
+                pue: 1.5, 
+                costPerKwh: 0.15, 
+                co2gPerKwh: 400 
+            };
+            
+            const comparisonData = {
+                'Google Search': 0.03,
+                'Sending an Email': 0.05,
+                '1 min of Streaming Video': 1.2
+            };
+
+            let comparisonChart;
+
+            const formatValue = (value, decimals, unit = '') => {
+                if (value < 0.0001 && value > 0) return `< 0.0001${unit}`;
+                return `${value.toFixed(decimals)}${unit}`;
+            };
+
+            const calculateFootprint = (text) => {
+                const queryEnergy = config.baselineEnergyWh + (text.length * config.charEnergyWh);
+                const totalEnergyWh = queryEnergy * config.pue;
+                const totalEnergyKwh = totalEnergyWh / 1000;
+                const cost = totalEnergyKwh * config.costPerKwh;
+                const carbon = totalEnergyKwh * config.co2gPerKwh;
+                return { queryEnergy, totalEnergyWh, cost, carbon };
+            };
+
+            const updateUI = (data, isLive = false) => {
+                energyOutput.textContent = `${formatValue(data.totalEnergyWh, 2, ' Wh')}`;
+                costOutput.textContent = `$${formatValue(data.cost, 4)}`;
+                carbonOutput.textContent = `${formatValue(data.carbon, 2, ' g CO₂')}`;
+
+                if (!isLive) {
+                    updateRelatableComparisons(data);
+                    updateComparisonChart(data.queryEnergy);
+                    resultsSection.classList.remove('hidden');
+                }
+            };
+            
+            const updateRelatableComparisons = (data) => {
+                const ledBulbMinutes = data.totalEnergyWh / (10 / 60); 
+                const smartphoneCharges = data.totalEnergyWh / 5; 
+
+                relatableContainer.innerHTML = `
+                    <p>Your query used enough energy to power a 10W LED bulb for <strong class="font-semibold text-[#2C5F2D]">${ledBulbMinutes.toFixed(1)} minutes</strong>.</p>
+                    <p>It's equivalent to <strong class="font-semibold text-[#2C5F2D]">${(smartphoneCharges * 100).toFixed(1)}%</strong> of a full smartphone charge.</p>
+                `;
+            };
+
+            const initChart = () => {
+                const ctx = chartCanvas.getContext('2d');
+                comparisonChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Your Query', ...Object.keys(comparisonData)],
+                        datasets: [{
+                            label: 'Energy Consumption (Wh)',
+                            data: [0, ...Object.values(comparisonData)],
+                            backgroundColor: [
+                                '#97BC62',
+                                '#E0E0E0',
+                                '#E0E0E0',
+                                '#E0E0E0'
+                            ],
+                            borderColor: [
+                                '#2C5F2D',
+                                '#BDBDBD',
+                                '#BDBDBD',
+                                '#BDBDBD'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` ${context.parsed.y.toFixed(3)} Wh`;
+                                    }
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Query Energy vs. Common Activities',
+                                font: {
+                                    size: 16
+                                },
+                                color: '#333'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Watt-hours (Wh)'
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+            
+            const updateComparisonChart = (queryEnergy) => {
+                comparisonChart.data.datasets[0].data[0] = queryEnergy;
+                comparisonChart.update();
+            };
+
+            const handleCalculation = () => {
+                const text = queryInput.value;
+                if (!text.trim()) {
+                    alert("Please enter a query before calculating.");
+                    return;
+                }
+                const data = calculateFootprint(text);
+                updateUI(data, false);
+            };
+
+            queryInput.addEventListener('input', () => {
+                const text = queryInput.value;
+                const data = calculateFootprint(text);
+                updateUI(data, true);
+            });
+            
+            calculateBtn.addEventListener('click', handleCalculation);
+
+            initChart();
+        });
+    </script>
+</body>
+</html>
